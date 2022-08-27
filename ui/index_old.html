@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+	<title>ThubEquipChain</title>
+
+	<!-- Latest compiled and minified CSS -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<!-- jQuery library -->
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+	<!-- Latest compiled JavaScript -->
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<!-- font family -->
+	<link href="https://fonts.googleapis.com/css?family=Quicksand" rel="stylesheet">
+	<!-- icons -->
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
+	<!-- mqtt file -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.js" type="text/javascript"></script>
+
+
+	<style type="text/css">
+		html,body {
+			font-family: 'Quicksand', sans-serif;
+		}
+	</style>
+</head>
+<body>
+	<div class="container">
+		<div class="row">
+			<div class="col-md-6 col-md-offset-3 well">
+				<ul class="nav nav-tabs">
+					
+					<li  class="active"><a data-toggle="tab" href="#data">Login</a></li>
+					<li><a data-toggle="tab" href="#action">Dashboard</a></li>
+					<li><a data-toggle="tab" href="#txn">EquipmentRequest</a></li>
+
+
+				</ul>
+
+				<div class="tab-content">
+					<div id="data" class="tab-pane fade in active">
+						<h3 class="text-center">ThubEquipChain</h3>
+						<hr/>
+						<div class="form-group">
+							<label>Roll Number</label>
+							<input type="textbox" id="rollnumber" class="form-control"  required autocomplete="off" />
+						</div>
+
+						<button class="btn btn-info" id="data_save">SAVE</button>
+					</div>
+
+					<div id="txn" class="tab-pane fade in active">
+						<h3 class="text-center">ThubEquipChain</h3>
+						<hr/>
+						<div class="form-group">
+							<label>Sender</label>
+							<input type="textbox" id="sender" class="form-control"  required autocomplete="off" />
+						</div>
+
+						<div class="form-group">
+							<label>Receiver</label>
+							<input type="text" id="receiver" class="form-control" required />
+						</div>
+						<div class="form-group">
+							<label>Asset</label>
+							<input type="text" id="asset" class="form-control" required autocomplete="off" />
+						</div>
+						<!-- <div class="form-group">
+							<label>Topic Id</label>
+							<input type="text" id="topic_id" class="form-control" required autocomplete="off" />
+						</div> -->
+						<button class="btn btn-info" id="data_submit">send OTP</button>
+						&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+						<i class="fa fa-pencil fa-2x" data-toggle="modal" data-target="#myModal"></i>
+
+						
+					</div>
+
+					<div id="action" class="tab-pane fade text-center">					
+						<!-- NEED TO ADD SOME LINES TO SHOW THE DATA -->
+						<div class="middle">						
+							  <h2>MY WALLET</h2>
+							  <p>blah blah</p>            
+								  <table class="table" id="mywallet">
+								    <thead>
+								      <tr>
+								        <th>Asset Name</th>
+								        <th>Quantity</th>
+								        <th>Date</th>
+								      </tr>
+								    </thead>
+								    <tbody>
+								      <tr id="mywal0">
+
+								        <td>RPI-12</td>
+								        <td>1</td>
+								        <td>31-08-2018</td>
+								      </tr>
+								      
+								      <tr id="mywal1"></tr>
+
+								    </tbody>
+								  </table>
+								  
+							  <h2>THUB WALLET</h2>
+							  <p>blah blah</p>            
+								  <table class="table" id="thubwallet">
+								     <tr id="twal0">
+								        <th>Asset Name</th>
+								        <th>Quantity</th>
+								      </tr>
+								    </thead>
+								    <tbody>
+								      <tr>
+								        <td>RPI-34</td>
+								        <td>1</td>
+								      </tr>
+								      <tr id="twal1"></tr>
+								    </tbody>  
+								  </table>
+								  	
+							</div>
+
+						</div>
+						
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Modal -->
+		<div id="myModal" class="modal fade" role="dialog">
+			<div class="modal-dialog">
+
+				<!-- Modal content-->
+				<div class="modal-content">
+					<div class="modal-header">
+						<button type="button" class="close" data-dismiss="modal">&times;</button>
+						<h4 class="modal-title">Complete Transaction</h4>
+					</div>
+					<div class="modal-body">
+						<div class="form-group">
+							<label>OTP</label>
+							<input type="text" class="form-control" value="" id="button_name" autocomplete="off" required />
+						</div>
+						
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+						<button type="button" class="btn btn-info" id="add_button">Submit</button>
+					</div>
+				</div>
+
+			</div>
+		</div>
+		<!-- /Modal -->
+
+	</div>
+
+	<script>
+		$(document).ready(function(){
+				var rollnumber;
+				var port = 8080;
+				var address = "test.mosquitto.org";
+				var topic;
+				var client;
+				var sender;
+				var receiver;
+				var asset;
+				var pubtopic = "block-server";
+				var subtopic = "block-ui";
+				var otp;
+				var i=0;
+		
+				function mqttConnect(address,port,username)
+				{
+					var wsbroker = address; 
+					var wsport = port;
+					// var client = username;
+					client = new Paho.MQTT.Client(wsbroker, wsport,
+					username+ parseInt(Math.random() * 100, 10));                
+					
+					client.onConnectionLost = function (responseObject) {
+					console.log("connection lost: " + responseObject.errorMessage);
+					}; 
+					var options = 
+						{
+							timeout: 3,
+							onSuccess: function () {
+							console.log("mqtt connected");
+							client.subscribe(subtopic, {qos: 2});
+							alert("CONNECTED");
+							},
+							onFailure: function (message) {
+							console.log(wsbroker,wsport,client);
+							console.log("Connection failed: " + message.errorMessage);
+							alert("FAILED TO CONNECT");
+							alert ("TRY AGAIN");
+							}
+							
+						};
+					client.onMessageArrived = function (message) {
+			      		console.log(message.destinationName, ' -- ', message.payloadString);
+				      	var obj = JSON.parse(message.payloadString);
+				      	otp = obj.otp;
+				      	for (i=0;i<3;i++)
+							{
+								$('#mywal'+i).html("<td>"+ (i+1) +"</td><td>"+ (i+2) +"</td><td>"+ (i+3) +"</td>");
+								$('#mywallet').append('<tr id="row'+(i+1)+'"></tr>');
+							};
+						for (i=0;i<3;i++)
+							{
+								$('#twal'+i).html("<td>"+ (i+1) +"</td><td>"+ (i+2) +"</td><td>"+ (i+3) +"</td>");
+								$('#thubwallet').append('<tr id="row'+(i+1)+'"></tr>');
+							};
+	
+						
+					};	       
+					client.connect(options);  
+		        }
+		        function mqttSend(topic,value)
+		        {
+		        	    var myData={sender:value};		
+				        myData = JSON.stringify(myData);
+				        message = new Paho.MQTT.Message(myData);
+				        message.destinationName = topic;
+				        console.log(myData);
+				        client.send(message);
+		        }
+		       
+		    $("#data_save").click(function(){
+				console.log("data_save clicked");
+				// // Data
+				rollnumber = $("#rollnumber").val();
+				console.log(rollnumber);
+				
+				mqttConnect(address,port,rollnumber);
+				for (i=0;i<3;i++)
+							{
+								$('#mywal'+i).html("<td>"+ (i+1) +"</td><td>"+ (i+2) +"</td><td>"+ (i+3) +"</td>");
+								$('#mywallet').append('<tr id="mywal'+(i+1)+'"></tr>');
+							};
+						for (i=0;i<3;i++)
+							{
+								$('#twal'+i).html("<td>"+ (i+1) +"</td><td>"+ (i+2) +"</td>");
+								$('#thubwallet').append('<tr id="twal'+(i+1)+'"></tr>');
+							};
+	
+				
+				
+				
+			});
+			$("#data_submit").click(function(){
+				console.log("data_submit clicked");
+				sender = $("#sender").val();
+				receiver = $("#receiver").val();
+				asset = $("#asset").val();
+				mqttSend(pubtopic,rollnumber);	
+				
+			}); 
+    
+			$("#add_button").click(function(){
+				console.log("add_button");
+				// var name 	= $("#button_name").val();
+				
+					$('[data-dismiss="modal"]').click();
+					
+				// 	$("#button_name").val('');
+				var otpentered = $("#button_name").val();
+				if (otpentered==otp){
+					alert("same");
+				}
+				
+				})
+			});
+			
+			
+	</script>
+</body>
+</html>
+
+
+
+
